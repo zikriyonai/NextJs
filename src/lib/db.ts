@@ -56,6 +56,48 @@ export async function listMessages(userId: string, conversationId: string) {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
+// ---------- Message editing (with history — ChatGPT-style "edit & regenerate") ----------
+export async function editMessageAndTruncate(
+  userId: string, conversationId: string, messageId: string, newText: string
+) {
+  const convRef = firestore.collection("users").doc(userId).collection("conversations").doc(conversationId);
+  const messagesRef = convRef.collection("messages");
+
+  const snap = await messagesRef.orderBy("createdAt", "asc").get();
+  const docs = snap.docs;
+  const editIndex = docs.findIndex((d) => d.id === messageId);
+  if (editIndex === -1) throw new Error("Message not found");
+
+  const target = docs[editIndex];
+  const prevData = target.data();
+
+  // Save the previous version into history before overwriting
+  await target.ref.update({
+    text: newText,
+    editedAt: FieldValue.serverTimestamp(),
+    history: FieldValue.arrayUnion({
+      text: prevData.text,
+      editedAt: prevData.editedAt || prevData.createdAt || null,
+    }),
+  });
+
+  // Delete every message AFTER the edited one — editing a user message
+  // invalidates everything that followed it, same as ChatGPT/Claude.
+  const batch = firestore.batch();
+  for (let i = editIndex + 1; i < docs.length; i++) {
+    batch.delete(docs[i].ref);
+  }
+  await batch.commit();
+  await convRef.update({ updatedAt: FieldValue.serverTimestamp() });
+}
+
+export async function getMessageHistory(userId: string, conversationId: string, messageId: string) {
+  const doc = await firestore.collection("users").doc(userId).collection("conversations")
+    .doc(conversationId).collection("messages").doc(messageId).get();
+  if (!doc.exists) return [];
+  return doc.data()?.history || [];
+}
+
 // ---------- Memory (Realtime Database — fast key/value) ----------
 export async function setMemory(userId: string, key: string, value: string) {
   await rtdb.ref(`memory/${userId}/${key}`).set({ value, updatedAt: Date.now() });
