@@ -1,0 +1,119 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useSession, signOut } from "next-auth/react";
+import Image from "next/image";
+import NewProjectModal from "./NewProjectModal";
+
+type Project = { id: string; name: string; color: string };
+type Conversation = { id: string; title: string; projectId: string | null };
+
+const PALETTE = ["#2A5CFF", "#4F46E5", "#7C3AED", "#06B6D4", "#0B0B12"];
+
+export default function Sidebar({
+  activeConversationId, onSelectConversation, onNewChat, refreshKey,
+}: {
+  activeConversationId: string | null;
+  onSelectConversation: (id: string) => void;
+  onNewChat: (projectId: string | null) => void;
+  refreshKey: number;
+}) {
+  const { data: session } = useSession();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [showNewProject, setShowNewProject] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  async function loadAll() {
+    const [pRes, cRes] = await Promise.all([fetch("/api/projects"), fetch("/api/conversations")]);
+    setProjects((await pRes.json()).projects || []);
+    setConversations((await cRes.json()).conversations || []);
+  }
+
+  useEffect(() => { if (session) loadAll(); }, [session, refreshKey]);
+
+  async function createProject(name: string, color: string) {
+    await fetch("/api/projects", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, color }),
+    });
+    setShowNewProject(false);
+    loadAll();
+  }
+
+  const visibleConversations = activeProjectId
+    ? conversations.filter((c) => c.projectId === activeProjectId)
+    : conversations;
+
+  if (!session) return null;
+
+  return (
+    <aside className="w-72 shrink-0 h-screen flex flex-col bg-[#0b0b14] border-r border-white/10">
+      <div className="flex items-center gap-2 px-4 py-4">
+        <Image src="/logo-hex.png" alt="Zikriyon AI" width={32} height={32} className="rounded-lg" />
+        <span className="font-bold bg-gradient-to-r from-[#4F46E5] to-[#06B6D4] bg-clip-text text-transparent">
+          Zikriyon AI
+        </span>
+      </div>
+
+      <button onClick={() => onNewChat(activeProjectId)}
+        className="mx-4 mb-4 px-4 py-2 rounded-lg bg-gradient-to-r from-[#2A5CFF] to-[#7C3AED] font-semibold text-sm">
+        + New chat
+      </button>
+
+      <div className="px-4 mb-2 flex items-center justify-between text-xs uppercase tracking-wide text-white/40">
+        <span>Projects</span>
+        <button onClick={() => setShowNewProject(true)} className="text-white/60 hover:text-white">+</button>
+      </div>
+      <div className="px-2 mb-4 space-y-1 max-h-40 overflow-y-auto">
+        <button onClick={() => setActiveProjectId(null)}
+          className={`w-full text-left px-3 py-1.5 rounded-lg text-sm ${activeProjectId === null ? "bg-white/10" : "hover:bg-white/5"}`}>
+          All chats
+        </button>
+        {projects.map((p) => (
+          <button key={p.id} onClick={() => setActiveProjectId(p.id)}
+            className={`w-full text-left px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 ${activeProjectId === p.id ? "bg-white/10" : "hover:bg-white/5"}`}>
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />
+            <span className="truncate">{p.name}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="px-4 mb-2 text-xs uppercase tracking-wide text-white/40">Chats</div>
+      <div className="flex-1 px-2 space-y-1 overflow-y-auto">
+        {visibleConversations.map((c) => (
+          <button key={c.id} onClick={() => onSelectConversation(c.id)}
+            className={`w-full text-left px-3 py-2 rounded-lg text-sm truncate ${activeConversationId === c.id ? "bg-white/10" : "hover:bg-white/5"}`}>
+            {c.title}
+          </button>
+        ))}
+      </div>
+
+      <div className="relative border-t border-white/10 p-4">
+        <button onClick={() => setProfileOpen((v) => !v)} className="w-full flex items-center gap-3">
+          {session.user?.image ? (
+            <img src={session.user.image} alt="" className="w-8 h-8 rounded-full" />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#2A5CFF] to-[#7C3AED] flex items-center justify-center text-sm font-bold">
+              {session.user?.name?.[0] || session.user?.email?.[0] || "Z"}
+            </div>
+          )}
+          <span className="text-sm truncate">{session.user?.name || session.user?.email}</span>
+        </button>
+
+        {profileOpen && (
+          <div className="absolute bottom-16 left-4 right-4 bg-[#14141f] border border-white/10 rounded-lg overflow-hidden">
+            <button onClick={() => signOut()} className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5">
+              Log out
+            </button>
+          </div>
+        )}
+      </div>
+
+      {showNewProject && (
+        <NewProjectModal palette={PALETTE} onClose={() => setShowNewProject(false)} onCreate={createProject} />
+      )}
+    </aside>
+  );
+}
