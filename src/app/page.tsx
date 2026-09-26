@@ -6,7 +6,7 @@ import Image from "next/image";
 import Sidebar from "@/components/Sidebar";
 import SuggestionCard from "@/components/SuggestionCard";
 
-type Message = { role: "user" | "assistant"; text: string };
+type Message = { id?: string; role: "user" | "assistant"; text: string; editedAt?: any };
 
 export default function Home() {
   const { data: session, status } = useSession();
