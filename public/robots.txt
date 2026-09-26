@@ -13,4 +13,4 @@ Disallow: /settings/
 Disallow: /_next/
 
 # Sitemap
-Sitemap: https://zikriyonai.vercel.app/sitemap.xml
+# Sitemap: https://zikriyonai.vercel.app/sitemap.xml
