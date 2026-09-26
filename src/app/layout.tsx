@@ -5,6 +5,7 @@ import Providers from "@/components/Providers";
 export const metadata: Metadata = {
   title: "Zikriyon AI",
   description: "Zikriyon AI — built by ZEAIPC",
+  icons: { icon: "/logo-hex.png" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
