@@ -26,7 +26,7 @@ export default function Home() {
       .then((r) => r.json())
       .then((d) => setMessages(d.messages || []));
   }, [activeConversationId]);
-
+const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   async function startNewChat(projectId: string | null) {
     const res = await fetch("/api/conversations", {
       method: "POST",
@@ -107,13 +107,21 @@ export default function Home() {
   return (
     <div className="flex h-screen">
       <Sidebar
-        activeConversationId={activeConversationId}
-        onSelectConversation={setActiveConversationId}
-        onNewChat={startNewChat}
-        refreshKey={refreshKey}
-      />
+  activeConversationId={activeConversationId}
+  onSelectConversation={setActiveConversationId}
+  onNewChat={startNewChat}
+  refreshKey={refreshKey}
+  collapsed={sidebarCollapsed}
+  onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
+/>
 
       <main className="flex-1 flex flex-col items-center px-6 py-8 overflow-hidden">
+        {sidebarCollapsed && (
+    <div className="w-full max-w-2xl flex items-center gap-2 mb-4 -mt-2">
+      <Image src="/logo-hex.png" alt="" width={22} height={22} className="rounded" />
+      <span className="text-sm font-semibold text-white/70">Zikriyon Atom</span>
+    </div>
+  )}
         <div className="w-full max-w-2xl flex-1 flex flex-col overflow-hidden">
           {messages.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center">
